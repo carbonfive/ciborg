@@ -13,8 +13,8 @@ module Ciborg
     property :ssh_port, :default => 22
     property :server_ssh_key, :default => Proc.new { default_ssh_key }
     property :github_ssh_key, :default => Proc.new { default_ssh_key }
-    property :recipes, :default => ["pivotal_ci::jenkins", "pivotal_ci::limited_travis_ci_environment", "pivotal_ci"]
-    property :cookbook_paths, :default => ['./chef/cookbooks/', './chef/travis-cookbooks/ci_environment', './chef/project-cookbooks']
+    property :recipes, :default => ["carbonfive_hubot::limited_travis_ci_environment", "carbonfive_hubot"]
+    property :cookbook_paths, :default => ['./chef/cookbooks/', './chef/travis-cookbooks/ci_environment']
     property :node_attributes, :default => Proc.new { default_node_attributes }
     property :security_group, :default => 'ciborg'
     property :availability_zone, :default => "us-east-1b"
@@ -22,19 +22,6 @@ module Ciborg
     def initialize(attributes = {})
       super
       self["node_attributes"] = Hashie::Mash.new(node_attributes)
-    end
-
-    def add_build(name, repository, branch, command)
-      build = {
-        "name" => name,
-        "repository" => repository,
-        "branch" => branch,
-        "command" => command,
-        "junit_publisher" => true
-      }
-      self.node_attributes = self.node_attributes.tap do |config|
-        config.jenkins.builds << build unless config.jenkins.builds.include?(build)
-      end
     end
 
     def github_ssh_key_path
@@ -73,18 +60,6 @@ module Ciborg
       "https://#{master}" if master
     end
 
-    def jenkins_url
-      "https://#{CGI.escape(basic_auth_user)}:#{CGI.escape(basic_auth_password)}@#{master}" if master
-    end
-
-    def cc_menu_url
-      "#{jenkins_url}/cc.xml" if master
-    end
-
-    def rss_url(job_name)
-      master_url + "/job/#{job_name}/rssAll" if master_url
-    end
-
     def node_attributes=(attributes)
       self["node_attributes"] = Hashie::Mash.new(attributes)
     end
@@ -94,15 +69,7 @@ module Ciborg
     end
 
     def errors
-      messages = []
-      if node_attributes.has_key?("jenkins")
-        unless node_attributes.jenkins.has_key?("builds")
-          messages << "[:node_attributes][:jenkins][:builds]"
-        end
-      else
-        messages << "[:node_attributes][:jenkins]"
-      end
-      messages.map{ |path| "your config file does not have a #{path} key" }
+      []
     end
 
     def soloistrc
@@ -149,16 +116,6 @@ module Ciborg
   Instance ID:        #{instance_id}
   IP Address:         #{master}
   Instance size:      #{instance_size}
-.
-  Builds:
-#{builds}
-.
-  Web URL:            #{master_url}
-  User name:          #{basic_auth_user}
-  User password:      #{basic_auth_password}
-.
-  CC Menu URL:        #{cc_menu_url}
-.
 OOTPÜT
     end
 
@@ -173,21 +130,6 @@ OOTPÜT
       File.open(yaml_file, "r") { |file| YAML.load(file.read) }
     end
 
-    def basic_auth_user
-      node_attributes[:nginx][:basic_auth_user]
-    end
-
-    def basic_auth_password
-      node_attributes[:nginx][:basic_auth_password]
-    end
-
-    def builds
-      node_attributes[:jenkins][:builds].
-        map { |build| build[:name] }    .
-        map { |build| "    %-17s %s" % [build, rss_url(build)] }  .
-        join("\n")
-    end
-
     private
 
     def self.default_ssh_key
@@ -197,16 +139,9 @@ OOTPÜT
     def self.default_node_attributes
       {
         :travis_build_environment => {
-          :user => "jenkins",
+          :user => "hubot",
           :group => "nogroup",
-          :home => "/var/lib/jenkins"
-        },
-        :nginx => {
-          :basic_auth_user => "ci",
-          :basic_auth_password => Ciborg::Password.generate
-        },
-        :jenkins => {
-          :builds => []
+          :home => "/home/hubot"
         }
       }
     end

@@ -33,3 +33,8 @@ rvm_gemset_create_on_use_flag=1
 RVMRC_CONTENTS
 
 sudo usermod ubuntu -a -G rvm
+
+grep -q hubot /etc/passwd || sudo -n useradd -m hubot -G sudo,admin -s /bin/bash
+test -d /home/hubot/.ssh || sudo -n mkdir /home/hubot/.ssh
+sudo -n chmod 0700 /home/hubot/.ssh
+sudo -n chown -R hubot /home/hubot/.ssh

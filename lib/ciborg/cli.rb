@@ -3,21 +3,13 @@ require "thor/group"
 require "pp"
 require "tempfile"
 require "json"
-require "ciborg/configuration_wizard"
 require "godot"
 
 module Ciborg
   class CLI < ::Thor
-    register(ConfigurationWizard, "setup", "setup", ConfigurationWizard::DESCRIPTION_TEXT)
-
     desc "ssh", "SSH into Ciborg"
     def ssh
       exec("ssh -i #{ciborg_config.server_ssh_key_path} ubuntu@#{ciborg_config.master} -p #{ciborg_config.ssh_port}")
-    end
-
-    desc "open", "Open a browser to Ciborg"
-    def open
-      exec("open #{ciborg_config.jenkins_url}/")
     end
 
     desc "create", "Create a new Ciborg server using EC2"
@@ -68,11 +60,6 @@ module Ciborg
       say ciborg_config.display
     end
 
-    desc "certificate", "Dump the certificate"
-    def certificate
-      say(keychain.fetch_remote_certificate("https://#{ciborg_config.master}"))
-    end
-
     desc "bootstrap", "Configures Ciborg's master node"
     def bootstrap
       sync_bootstrap_script
@@ -91,20 +78,6 @@ module Ciborg
       sleep 1
     end
 
-    desc "add_build <name> <repository> <branch> <command>", "Adds a build to Ciborg"
-    def add_build(name, repository, branch, command)
-      raise ciborg_config.errors.join(" and ") unless ciborg_config.valid?
-
-      ciborg_config.add_build(name, repository, branch, command)
-      ciborg_config.save
-    end
-
-    desc "trust_certificate", "Adds the current master's certificate to your OSX keychain"
-    def trust_certificate
-      certificate_contents = keychain.fetch_remote_certificate("https://#{ciborg_config.master}/")
-      keychain.add_certificate(certificate_contents)
-    end
-
     no_tasks do
       def master_server
         @master_server ||= Ciborg::Sobo.new(ciborg_config.master, ciborg_config.server_ssh_key_path)
@@ -116,10 +89,6 @@ module Ciborg
 
       def amazon
         @amazon ||= Ciborg::Amazon.new(ciborg_config.aws_key, ciborg_config.aws_secret)
-      end
-
-      def keychain
-        @keychain ||= Ciborg::Keychain.new("/Library/Keychains/System.keychain")
       end
 
       def sync_bootstrap_script

@@ -6,5 +6,3 @@ Gemfile.lock
 /pkg
 .env*
 *.log
-jenkins_plugin/target
-jenkins_plugin/work
